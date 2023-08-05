@@ -1,6 +1,7 @@
 import torch
 import typing as t
 
+
 def iou_loss(
         box1: torch.Tensor,
         box2: torch.Tensor,
@@ -40,7 +41,7 @@ def giou_loss(
         box1: torch.Tensor,
         box2: torch.Tensor,
         return_loss: bool = True,
-) -> torch.Tensor:
+) -> t.Union[torch.Tensor, t.Tuple[..., torch.Tensor]]:
     """
     loss based on GIOU, add calculation method for intersection scale.
 
@@ -59,7 +60,7 @@ def giou_loss(
     box1_num, box2_num = box1.size(0), box2.size(0)
     _, union, iou_plural = iou_loss(box1, box2, False)
 
-    # box1 dim => [n, m, 4], box2 dim => [n, m, 4]
+    # dim trans => [n, m, 4], box2 dim => [n, m, 4]
     box1 = box1.unsqueeze(1).expand(box1_num, box2_num, 4)
     box2 = box2.unsqueeze(0).expand(box1_num, box2_num, 4)
 
@@ -70,10 +71,14 @@ def giou_loss(
     external_area = (x_c2 - x_c1) * (y_c2 - y_c1)
     g_iou = iou_plural - (external_area - union) / external_area
 
-    return 1 - g_iou if return_loss else g_iou
+    return 1 - g_iou if return_loss else (iou_plural, g_iou, x_c2 - x_c1, y_c2 - y_c1)
 
 
-def diou_loss(self, box1: torch.Tensor, box2: torch.Tensor) -> torch.Tensor:
+def diou_loss(
+        box1: torch.Tensor,
+        box2: torch.Tensor,
+        return_loss: bool = True,
+) -> torch.Tensor:
     """
     loss based on DIOU
     Input:
@@ -83,7 +88,25 @@ def diou_loss(self, box1: torch.Tensor, box2: torch.Tensor) -> torch.Tensor:
     Output:
         output: dimension -> [n, m]
     """
-    pass
+
+    box1_num, box2_num = box1.size(0), box2.size(0)
+    iou_plural, _, dia_x, dia_y = giou_loss(box1, box2, False)
+    x_mid1 = (box1[:, 0] + box1[:, 2]) / 2.
+    y_mid1 = (box1[:, 1] + box1[:, 3]) / 2.
+
+    x_mid2 = (box2[:, 0] + box2[:, 2]) / 2.
+    y_mid2 = (box2[:, 1] + box2[:, 3]) / 2.
+
+    # dim trans -> [n, m, 2]
+    mid_box1 = torch.stack((x_mid1, y_mid1), dim=-1).unsqueeze(1).expand(box1_num, box2_num, 2)
+    mid_box2 = torch.stack((x_mid2, y_mid2), dim=-1).unsqueeze(0).expand(box1_num, box2_num, 2)
+
+    # calculate euclidean distance
+    eu_dis = torch.pow(mid_box1 - mid_box2, 2).sum(dim=-1, keepdim=True)
+    # calculate diagonal distance
+    dia_dis = torch.pow(dia_x, 2) + torch.pow(dia_y, 2)
+    d_iou = iou_plural - eu_dis / dia_dis
+    return 1 - d_iou if return_loss else d_iou
 
 
 def ciou_loss(self, box1: torch.Tensor, box2: torch.Tensor) -> torch.Tensor:
