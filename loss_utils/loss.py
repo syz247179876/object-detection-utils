@@ -8,13 +8,13 @@ def iou_loss(
         return_loss: bool = True
 ) -> t.Union[torch.Tensor, t.Tuple[..., torch.Tensor]]:
     """
-    loss based on IOU
+    loss based on IoU
     Input:
         box1: dimension -> [n, 4], 4 -> [x1, y1, x2, y2]
         box2: dimension -> [m, 4], 4 -> [x1, y1, x2, y2]
 
     Output:
-        output: dimension -> [n, m]
+        output: dimension -> [n, m, 1]
     """
 
     a_size, b_size = box1.size(0), box2.size(1)
@@ -43,18 +43,18 @@ def giou_loss(
         return_loss: bool = True,
 ) -> t.Union[torch.Tensor, t.Tuple[..., torch.Tensor]]:
     """
-    loss based on GIOU, add calculation method for intersection scale.
+    loss based on GIoU, add calculation method for intersection scale.
 
     Advantages:
-        1.GIOU based on ratio, so it is not sensitive to scale compared to MSE loss
-        2.GIOU not only focuses on overlapping areas, but also other non overlapping areas, so it make up for IOU
+        1.GIoU based on ratio, so it is not sensitive to scale compared to MSE loss
+        2.GIoU not only focuses on overlapping areas, but also other non overlapping areas, so it make up for IOU
         which only care about overlapping areas.
     Input:
         box1: dimension -> [n, 4], 4 -> [x1, y1, x2, y2]
         box2: dimension -> [m, 4], 4 -> [x1, y1, x2, y2]
 
     Output:
-        output: dimension -> [n, m]
+        output: dimension -> [n, m, 1]
     """
 
     box1_num, box2_num = box1.size(0), box2.size(0)
@@ -80,13 +80,20 @@ def diou_loss(
         return_loss: bool = True,
 ) -> torch.Tensor:
     """
-    loss based on DIOU
+    loss based on DIoU, consider overlapping area, center point distance, and diagonal distance.
+    Solving the problem of GIoU equality in the case of bbox inclusion.
+
+    Advantages:
+        1.the rate of convergence in DIoU is faster compared to GIoU.
+        2.consider overlapping area, center point distance, and diagonal distance, which based on
+        euclidean distance.
+
     Input:
         box1: dimension -> [n, 4], 4 -> [x1, y1, x2, y2]
         box2: dimension -> [m, 4], 4 -> [x1, y1, x2, y2]
 
     Output:
-        output: dimension -> [n, m]
+        output: dimension -> [n, m, 1]
     """
 
     box1_num, box2_num = box1.size(0), box2.size(0)
@@ -111,7 +118,7 @@ def diou_loss(
 
 def ciou_loss(self, box1: torch.Tensor, box2: torch.Tensor) -> torch.Tensor:
     """
-    loss based on CIOU
+    loss based on CIoU
     Input:
         box1: dimension -> [n, 4], 4 -> [x1, y1, x2, y2]
         box2: dimension -> [m, 4], 4 -> [x1, y1, x2, y2]
